@@ -6,17 +6,17 @@ import * as dotenv from "dotenv";
 import { parseJSON, right, toError } from "fp-ts/lib/Either";
 import { fromNullable, isSome } from "fp-ts/lib/Option";
 import * as t from "io-ts";
-import { agent } from "italia-ts-commons";
+import { agent } from "@pagopa/ts-commons";
 
 import {
   getNodeEnvironmentFromProcessEnv,
   NodeEnvironmentEnum
-} from "italia-ts-commons/lib/environment";
+} from "@pagopa/ts-commons/lib/environment";
 import {
   errorsToReadableMessages,
   readableReport
-} from "italia-ts-commons/lib/reporters";
-import { UrlFromString } from "italia-ts-commons/lib/url";
+} from "@pagopa/ts-commons/lib/reporters";
+import { UrlFromString } from "@pagopa/ts-commons/lib/url";
 
 import {
   IApplicationConfig,
@@ -29,11 +29,11 @@ import {
   AbortableFetch,
   setFetchTimeout,
   toFetch
-} from "italia-ts-commons/lib/fetch";
-import { IntegerFromString } from "italia-ts-commons/lib/numbers";
-import { NonEmptyString } from "italia-ts-commons/lib/strings";
-import { FiscalCode } from "italia-ts-commons/lib/strings";
-import { Millisecond, Second } from "italia-ts-commons/lib/units";
+} from "@pagopa/ts-commons/lib/fetch";
+import { IntegerFromString } from "@pagopa/ts-commons/lib/numbers";
+import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { FiscalCode } from "@pagopa/ts-commons/lib/strings";
+import { Millisecond, Second } from "@pagopa/ts-commons/lib/units";
 import { log } from "./utils/logger";
 import urlTokenStrategy from "./strategies/urlTokenStrategy";
 import { getRequiredENVVar, readFile } from "./utils/container";
@@ -296,22 +296,14 @@ export const ALLOW_SESSION_HANDLER_IP_SOURCE_RANGE = decodeCIDRs(
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 10000 as Millisecond;
 
-// HTTP-only fetch with optional keepalive agent
+// Generic HTTP/HTTPS fetch with optional keepalive agent
 // @see https://github.com/pagopa/io-ts-commons/blob/master/src/agent.ts#L10
-const abortableFetch = AbortableFetch(agent.getHttpFetch(process.env));
+const abortableFetch = AbortableFetch(agent.getFetch(process.env));
 const fetchWithTimeout = setFetchTimeout(
   DEFAULT_REQUEST_TIMEOUT_MS,
   abortableFetch
 );
-const httpApiFetch = toFetch(fetchWithTimeout);
-
-// HTTPS-only fetch with optional keepalive agent
-const httpsAbortableFetch = AbortableFetch(agent.getHttpsFetch(process.env));
-const httpsFetchWithTimeout = setFetchTimeout(
-  DEFAULT_REQUEST_TIMEOUT_MS,
-  httpsAbortableFetch
-);
-const httpsApiFetch = toFetch(httpsFetchWithTimeout);
+const httpOrHttpsApiFetch = toFetch(fetchWithTimeout);
 
 export const API_KEY = getRequiredENVVar("API_KEY");
 export const API_URL = getRequiredENVVar("API_URL");
@@ -319,7 +311,7 @@ export const API_BASE_PATH = getRequiredENVVar("API_BASE_PATH");
 export const API_CLIENT = new ApiClientFactory(
   API_KEY,
   API_URL,
-  API_URL.startsWith("https") ? httpsApiFetch : httpApiFetch
+  httpOrHttpsApiFetch
 );
 
 export const BONUS_API_KEY = getRequiredENVVar("BONUS_API_KEY");
@@ -328,7 +320,7 @@ export const BONUS_API_BASE_PATH = getRequiredENVVar("BONUS_API_BASE_PATH");
 export const BONUS_API_CLIENT = BonusAPIClient(
   BONUS_API_KEY,
   BONUS_API_URL,
-  BONUS_API_URL.startsWith("https") ? httpsApiFetch : httpApiFetch
+  httpOrHttpsApiFetch
 );
 
 // Set default session duration to 30 days
